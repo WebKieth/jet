@@ -67,7 +67,7 @@ export abstract class Component {
     return this.#uuid
   }
 
-  hasComponent(node: Element) {
+  isComponent(node: Element) {
     if (!node || node.hasAttribute('x-component') === false) return false
     const name = node.getAttribute('x-component')
     return Object.keys(this.components).some((key) => name === key)
@@ -111,6 +111,16 @@ export abstract class Component {
      * Вопрос. Сохранять ли индекс нового uuid в карте?
      */
   }
+  #cleanNodeEvents(domNode: HTMLElement) {
+    const codes = domNode.getAttribute('x-event-binded')
+    if (codes === null) return
+    const codesArr = codes.split(',').map((item) => item.trim())
+    codesArr.forEach((code) => {
+      const callback = this.#eventCollector.get(code)
+      if (callback === undefined) return
+      this.#cleanEvent(code, callback)
+    })
+  }
   patchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
     // console.log('deep patching', domNode, virtualNode)
     const hasInput = (node: HTMLElement) => {
@@ -122,83 +132,114 @@ export abstract class Component {
       )
     }
     if (hasInput(domNode) && hasInput(virtualNode)) {
-      const getAttributeNames = (node: HTMLElement) => {
-        const rv: any = {}
-        if (node.children.length === 0) {
-          rv['textContent'] = node.textContent
-        }
-        const attrs = node.attributes
-        for (let index = 0; index < attrs.length; ++index) {
-          rv[attrs[index].nodeName] = attrs[index].value
-        }
-        return rv
-      }
-      const domAttrs = getAttributeNames(domNode);
-      const vAttrs = getAttributeNames(virtualNode);
-      Object.keys(vAttrs).forEach((attrKey) => {
-        const newValue = vAttrs[attrKey]
-        const oldValue = domAttrs[attrKey]
-        if (newValue !== oldValue) {
-          if (attrKey === 'textContent') {
-            domNode.textContent = newValue
-          } else {
-            domNode.setAttribute(attrKey, newValue)
-          }
-        }
-      })
-      if (virtualNode.children.length > 0) {
-        let childIndex =  0
-        for (const vChild of virtualNode.children) {
-          const domChild = domNode.children[childIndex]
-          if (!domChild) {
-            domNode.appendChild(vChild)
-            childIndex = childIndex + 1
-            continue
-          }
-          if (domChild.localName === vChild.localName && this.hasComponent(domChild)) {
-            this.#patchVirtualChildren(domChild as HTMLElement, vChild as HTMLElement, props)
-            childIndex = childIndex + 1
-            continue
-          }
-          if (domChild.localName !== vChild.localName) {
-            domNode.replaceChild(vChild, domChild)
-          } else if (domChild.isEqualNode(vChild) === false) {
-            this.patchNode(domChild as HTMLElement, vChild as HTMLElement, props)
-          }
-          childIndex = childIndex + 1
-        }
-      }
+      this.#softPatchNode(domNode, virtualNode)
     } else {
-      this.#replaceChild(domNode, virtualNode, props)
+      this.#hardPatchNode(domNode, virtualNode, props)
     }
+
   }
-  #replaceChild(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
+  #hardPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
     const parent = domNode.parentNode
-    const cleanNodeEvents = (domNode: HTMLElement) => {
-      const codes = domNode.getAttribute('x-event-binded')
-      if (codes === null) return
-      const codesArr = codes.split(',').map((item) => item.trim())
-      codesArr.forEach((code) => {
-        const callback = this.#eventCollector.get(code)
-        if (callback === undefined) return
-        this.#cleanEvent(code, callback)
-      })
-    }
     const setNodeEvents = (domNode: HTMLElement, props: any) => {
       const eventName = domNode.getAttribute('x-event')
       const callbackName = domNode.getAttribute('x-on')
       this.#addEventCallback(domNode, props, eventName, callbackName)
     }
     if (domNode.hasAttribute('x-event-binded')) {
-      cleanNodeEvents(domNode)
+      this.#cleanNodeEvents(domNode)
     }
     const elementsWithEvents = domNode.querySelectorAll('[x-event-binded]')
     for (const element of elementsWithEvents) {
-      cleanNodeEvents(element as HTMLElement)
+      this.#cleanNodeEvents(element as HTMLElement)
     }
     parent?.replaceChild(virtualNode, domNode)
     if (virtualNode.hasAttribute('x-event')) {
       setNodeEvents(virtualNode, props)
+    }
+  }
+  #softPatchNode(domNode: HTMLElement, virtualNode: HTMLElement) {
+    const getAttributeNames = (node: HTMLElement) => {
+      const rv: any = {}
+      if (node.children.length === 0) {
+        rv['textContent'] = node.textContent
+      }
+      const attrs = node.attributes
+      for (let index = 0; index < attrs.length; ++index) {
+        rv[attrs[index].nodeName] = attrs[index].value
+      }
+      return rv
+    }
+    const domAttrs = getAttributeNames(domNode);
+    const vAttrs = getAttributeNames(virtualNode);
+    Object.keys(vAttrs).forEach((attrKey) => {
+      const newValue = vAttrs[attrKey]
+      const oldValue = domAttrs[attrKey]
+      if (newValue !== oldValue) {
+        if (attrKey === 'textContent') {
+          domNode.textContent = newValue
+        } else {
+          domNode.setAttribute(attrKey, newValue)
+        }
+      }
+    })
+  }
+  #createDefaultNodeMap(collection: HTMLCollection): Map<Element, boolean> {
+    const map: Map<Element, boolean> = new Map()
+    for (const node of collection) {
+      map.set(node, false)
+    }
+    return map
+  }
+  #isSimilar(firstNode: Element, secondNode: Element) {
+    if (firstNode.nodeName !== secondNode.nodeName) return false
+    if (
+      firstNode.className === secondNode.className ||
+      firstNode.className.includes(secondNode.className) ||
+      secondNode.className.includes(firstNode.className)
+    ) return true
+    return false
+  }
+  #findAndPatchSimilars(realNode: Element, virtuals: Map<Element, boolean>, props: any) {
+    let found = false
+    virtuals.forEach((status, virtualNode) => {
+      if (status === true || found === true) return
+      if (this.#isSimilar(realNode, virtualNode)) {
+        this.#patchNodeLevel(realNode as HTMLElement, virtualNode as HTMLElement, props)
+        found = true
+        virtuals.set(virtualNode, status)
+      }
+    })
+    return found
+  }
+  #compareChildNodes(realChildren: HTMLCollection, virtualChildren: HTMLCollection, props: any) {
+    const realChildenMap = this.#createDefaultNodeMap(realChildren)
+    const virtualChildrenMap = this.#createDefaultNodeMap(virtualChildren)
+    realChildenMap.forEach((status, node) => {
+      const found = this.#findAndPatchSimilars(node, virtualChildrenMap, props)
+      if (found === true) {
+        realChildenMap.set(node, true)
+      }
+    })
+    realChildenMap.forEach((status, node) => {
+      if (status === false) {
+        if (node.hasAttribute('x-event-binded')) {
+          this.#cleanNodeEvents(node as HTMLElement)
+        }
+        node.remove()
+      }
+    })
+  }
+  #patchNodeLevel(realNode: HTMLElement, virtualNode: HTMLElement, props: any) {
+    if (realNode.children.length === 0 && virtualNode.children.length === 0) {
+      if (this.isComponent(virtualNode) === true && this.isComponent(realNode) === false) {
+        
+      }
+      this.#softPatchNode(realNode, virtualNode)
+      return
+    } else if (realNode.children.length > 0 && virtualNode.children.length > 0) {
+      this.#compareChildNodes(realNode.children, virtualNode.children, props)
+    } else {
+      this.#hardPatchNode(realNode, virtualNode, props)
     }
   }
   #patchTree(props: any) {
@@ -210,38 +251,40 @@ export abstract class Component {
     if (virtualNode === null) {
       return
     }
-    let childIndex =  0
-    for (const vChild of virtualNode.children) {
-      const domChild = this.parentNode.children[childIndex]
-      const nextVChild = virtualNode.children[childIndex + 1]
-      const nextDChild = this.parentNode.children[childIndex + 1]
-      if (!domChild) {
-        this.parentNode.appendChild(vChild)
-        childIndex = childIndex + 1
-        continue
-      } else if (domChild.localName === vChild.localName) {
-        if (domChild.isEqualNode(vChild) === true) {
-          childIndex = childIndex + 1
-          continue
-        }
-        if (this.hasComponent(domChild) === false && this.hasComponent(vChild) === false) {
-          this.patchNode(domChild as HTMLElement, vChild as HTMLElement, props)
-          childIndex = childIndex + 1
-          continue
-        }
-      }
-      if (this.hasComponent(domChild) && this.hasComponent(vChild)) {
-        this.#replaceVirtualChildren(domChild as HTMLElement, vChild as HTMLElement, props)
-      } else if (this.hasComponent(domChild) === true && this.hasComponent(vChild) === false && this.hasComponent(nextVChild) === true) {
-        this.parentNode.insertBefore(vChild, domChild)
-      } else if (this.hasComponent(domChild) === false && this.hasComponent(vChild) === true && this.hasComponent(nextDChild) === true) {
-        this.parentNode.removeChild(domChild)
-      } else {
-        this.#replaceChild(domChild as HTMLElement, vChild as HTMLElement, props)
-      }
-      childIndex = childIndex + 1
-      continue
-    }
+    // let childIndex =  0
+    console.log('patch starting... ', this.parentNode, virtualNode)
+
+    // for (const vChild of virtualNode.children) {
+    //   const domChild = this.parentNode.children[childIndex]
+    //   const nextVChild = virtualNode.children[childIndex + 1]
+    //   const nextDChild = this.parentNode.children[childIndex + 1]
+    //   if (!domChild) {
+    //     this.parentNode.appendChild(vChild)
+    //     childIndex = childIndex + 1
+    //     continue
+    //   } else if (domChild.localName === vChild.localName) {
+    //     if (domChild.isEqualNode(vChild) === true) {
+    //       childIndex = childIndex + 1
+    //       continue
+    //     }
+    //     if (this.hasComponent(domChild) === false && this.hasComponent(vChild) === false) {
+    //       this.patchNode(domChild as HTMLElement, vChild as HTMLElement, props)
+    //       childIndex = childIndex + 1
+    //       continue
+    //     }
+    //   }
+    //   if (this.hasComponent(domChild) && this.hasComponent(vChild)) {
+    //     this.#replaceVirtualChildren(domChild as HTMLElement, vChild as HTMLElement, props)
+    //   } else if (this.hasComponent(domChild) === true && this.hasComponent(vChild) === false && this.hasComponent(nextVChild) === true) {
+    //     this.parentNode.insertBefore(vChild, domChild)
+    //   } else if (this.hasComponent(domChild) === false && this.hasComponent(vChild) === true && this.hasComponent(nextDChild) === true) {
+    //     this.parentNode.removeChild(domChild)
+    //   } else {
+    //     this.#replaceChild(domChild as HTMLElement, vChild as HTMLElement, props)
+    //   }
+    //   childIndex = childIndex + 1
+    //   continue
+    // }
   }
 
   #cleanTree() {

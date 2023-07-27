@@ -6,7 +6,7 @@ const connect = require('gulp-connect')
 const copyWorkspaceTemplate = async () => {
   return src('./src/workspace/index.html')
     .pipe(rename({ dirname: '' }))
-    .pipe(dest('/.serve'))
+    .pipe(dest('./.serve'))
 }
 
 const buildWorkspaceScript = async () => {
@@ -22,7 +22,7 @@ const buildWorkspaceScript = async () => {
         target: "es6",
         charset: 'utf8',
     }))
-    .pipe(dest('./dist'))
+    .pipe(dest('./.serve'))
 }
 
 const buildLib = async () => {
@@ -51,7 +51,12 @@ const serve = async () => {
 }
 
 const listen = async () => {
-  watch(['./src/**/*.ts', './src/lib/**/*.mustache']).on('change', async (path) => {
+  watch([
+    './src/lib/**/*.ts',
+    './src/workspace/**/*.ts',
+    './src/workspace/**/*.mustache',
+    './src/workspace/**/*.html'
+  ]).on('change', async (path) => {
     await buildWorkspaceScript()
     return src(path, { read: false }).pipe(connect.reload())
   })
