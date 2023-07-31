@@ -1,0 +1,30 @@
+<div class='select'>
+  <div class='select__body'>
+    {{#loading}}
+      <span>Загрузка данных</span>
+    {{/loading}}
+    {{^loading}}
+      <div class='select__value'>
+        {{#value}}
+          {{value}}
+        {{/value}}
+        {{^value}}
+          <span>Не выбрано</span>
+        {{/value}}
+      </div>
+    {{/loading}}
+    <div class='select__actions'>
+      <div class='select__toggle'></div>
+    </div>
+  </div>
+  <div class='select__options'>
+    {{#options}}
+      <div class='select__option'>
+        {{title}}
+      </div>
+    {{/options}}
+    {{^options}}
+      <span>Нет данных</span>
+    {{/options}}
+  </div>
+</div>

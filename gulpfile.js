@@ -53,7 +53,9 @@ const serve = async () => {
 const listen = async () => {
   watch([
     './src/lib/**/*.ts',
+    './src/workspace/*.html',
     './src/workspace/**/*.ts',
+    './src/workspace/**/*.css',
     './src/workspace/**/*.mustache',
     './src/workspace/**/*.html'
   ]).on('change', async (path) => {

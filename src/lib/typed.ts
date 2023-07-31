@@ -1,0 +1,1 @@
+export type viewService = (props: any, changes: any) => any

@@ -4,13 +4,17 @@
   "description": "mircomodular lightweight web client building library",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "gulp dev"
   },
   "author": "Bejoy",
   "license": "ISC",
   "dependencies": {
     "@types/mustache": "^4.2.2",
-    "mustache": "^4.2.0"
+    "@types/remarkable": "^2.0.3",
+    "axios": "^1.4.0",
+    "mustache": "^4.2.0",
+    "remarkable": "^2.0.1"
   },
   "devDependencies": {
     "gulp": "^4.0.2",

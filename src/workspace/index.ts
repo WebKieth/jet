@@ -1,12 +1,16 @@
 import { Component } from "../lib"
 import { EventBus } from "../lib/bus"
-import { FirstCase } from "./components/FirstCase"
+import { MarkdownExpander } from "./examples/MarkdownExpander"
+// import { Select } from "./examples/Select"
+import { UsersSelect } from "./examples/Select/hoc/users"
 //@ts-ignore
 import template from './root.mustache'
+import './reset.css'
+import './root.css'
 
 const Root = class Root extends Component {
   constructor(parentNode: HTMLElement) {
-    super({}, { FirstCase }, parentNode, new EventBus(), template)
+    super({}, { MarkdownExpander, UsersSelect }, parentNode, new EventBus(), template)
   }
 }
 try {

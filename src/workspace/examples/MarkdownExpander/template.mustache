@@ -1,0 +1,11 @@
+<div class='md-exp'>
+  <div class='md-exp__content'>{{{text}}}</div>
+  <button class='md-exp__btn' x-event='click' x-on='handleToggle'>
+    {{#collapsed}}
+      Свернуть
+    {{/collapsed}}
+    {{^collapsed}}
+      Подробнее
+    {{/collapsed}}
+  </button>
+</div>
