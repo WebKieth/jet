@@ -1,8 +1,8 @@
 {
   "name": "jet",
   "version": "1.0.0",
-  "description": "mircomodular lightweight web client building library",
-  "main": "dist/index.js",
+  "description": "lightweight web client reactive library",
+  "main": "dist/bundle.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "gulp dev"
