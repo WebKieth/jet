@@ -1,5 +1,5 @@
 {
-  "name": "jet",
+  "name": "@bejoy/jet",
   "version": "1.0.0",
   "description": "lightweight web client reactive library",
   "main": "dist/bundle.js",
