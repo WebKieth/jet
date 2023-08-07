@@ -59,6 +59,10 @@ export abstract class Component {
 
   #render(view: Object) {
     this.parentNode.innerHTML = Mustache.render(this.template, view)
+    console.log(`
+      JET DEBUG: render result for ${this.constructor.name}_${this.#uuid}:
+      ${Mustache.render(this.template, view)}
+    `)
   }
 
   getComponentId() {
@@ -105,22 +109,22 @@ export abstract class Component {
       this.#cleanNodeEvents(element as HTMLElement)
     }
   }
-  #hardPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
-    const parent = domNode.parentNode
-    const addNodeEvents = (node: HTMLElement, props: any, cyclingScope = false) => {
-      const eventName = node.getAttribute('x-event')
+  #addNodeEvents(node: HTMLElement, props: any, checkInside = false) {
+    const eventName = node.getAttribute('x-event')
       const callbackName = node.getAttribute('x-on')
       if (eventName && callbackName)
         this.#addEventCallback(node, props, eventName, callbackName)
-      if (cyclingScope) return
+      if (checkInside) return
       const elementsWithEvents = node.querySelectorAll(`[x-on][x-event]`)
       for (const element of elementsWithEvents) {
-        addNodeEvents(element as HTMLElement, props, true)
+        this.#addNodeEvents(element as HTMLElement, props, true)
       }
-    }
+  }
+  #hardPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
+    const parent = domNode.parentNode
     this.#removeNodeEvents(domNode)
     parent?.replaceChild(virtualNode, domNode)
-    addNodeEvents(virtualNode, props)
+    this.#addNodeEvents(virtualNode, props)
   }
   #softPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
     const getAttributeNames = (node: HTMLElement) => {
@@ -185,6 +189,9 @@ export abstract class Component {
   #compareChildNodes(realChildren: HTMLCollection, virtualChildren: HTMLCollection, parentNode: HTMLElement, props: any) {
     const realChildenMap = this.#createDefaultNodeMap(realChildren)
     const virtualChildrenMap = this.#createDefaultNodeMap(virtualChildren)
+    console.log(`
+      JET DEBUG LOG: starting compate child nodes
+    `, realChildenMap, virtualChildrenMap)
     realChildenMap.forEach((status, node) => {
       const found = this.#findAndPatchSimilars(node, virtualChildrenMap, props)
       if (found === true) {
@@ -205,6 +212,7 @@ export abstract class Component {
         const sibling = realChildren[idx]
         if (sibling === null) parentNode.appendChild(node)
         else parentNode.insertBefore(node, sibling)
+        this.#addNodeEvents(node as HTMLElement, props)
       }
       idx = idx + 1
     })
@@ -242,14 +250,14 @@ export abstract class Component {
         // maybe else patch update props in new version...
         return
       }
-      // console.log('JET DEBUG ### soft patch ', realNode, virtualNode)
+      console.log('JET DEBUG ### soft patch ', realNode, virtualNode)
       this.#softPatchNode(realNode, virtualNode, props)
       return
     } else if (realNode.children.length > 0 && virtualNode.children.length > 0) {
-      // console.log('JET DEBUG ### compare ', realNode, virtualNode.children)
+      console.log('JET DEBUG ### compare ', realNode, virtualNode.children)
       this.#compareChildNodes(realNode.children, virtualNode.children, realNode, props)
     } else {
-      // console.log('JET DEBUG ### hard patch ', realNode, virtualNode)
+      console.log('JET DEBUG ### hard patch ', realNode, virtualNode)
       this.#hardPatchNode(realNode, virtualNode, props)
     }
   }
@@ -262,6 +270,9 @@ export abstract class Component {
     if (virtualNode === null) {
       return
     }
+    console.log(`
+          JET DEBUG LOG: starting compate child nodes ${this.constructor.name} ${this.#uuid}: 
+        `, this.parentNode, virtualNode, compiledTemplate, memoizedPatch)
     this.#compareChildNodes(this.parentNode.children, virtualNode.children, this.parentNode, props)
   }
 
@@ -309,6 +320,9 @@ export abstract class Component {
         const uuid = instance.getComponentId()
         element.setAttribute('x-tree-bound', uuid)
         this.#vTree.set(uuid.toString(), instance)
+        console.log(`
+          JET DEBUG LOG: #parseTree result for ${this.constructor.name} ${this.#uuid}: 
+        `, this.#vTree)
       }
     })
   }
@@ -334,7 +348,9 @@ export abstract class Component {
 
     const eventCode = `${eventName}_${this.#uuid.toString()}`
     element.setAttribute('x-event-binded', eventCode)
-
+    console.log(`
+          JET DEBUG LOG: #addEventCallback result for ${this.constructor.name} ${this.#uuid}: 
+        `, element, this.#eventCollector, eventCode, callback)
     this.#eventCollector.set(eventCode, callback)
   }
 
@@ -361,6 +377,7 @@ export abstract class Component {
       return
     }
     this.#states = this.viewService(this.#states, changes)
+    console.log(`JET DEBUG LOG: start updating with new state`, this.#states)
     this.#patchTree(this.#states)
     this.updated(this.#states)
   }
