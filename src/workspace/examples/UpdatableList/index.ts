@@ -24,13 +24,17 @@ export class UpdatableList extends Component {
     return Math.floor(Math.random() * 100000);
   }
   
-  changeNewTitle(props: any, event: any) {
+  changeNewTitle(props: any, key: string | undefined, event: any) {
     this.setState({newTitle: event.target.value})
   }
-  remove(props: any) {
-    console.log('action: removing...', props)
+  removeOldTitle(props: any, key: string | undefined) {
+    const id = Number(key)
+    const rmIdx = props.list.findIndex((item) => item.id === id)
+    const listCopy = [...props.list]
+    listCopy.splice(rmIdx, 1)
+    this.setState({ list: listCopy })
   }
-  addNewTitle(props: any) {
+  addNewTitle(props: any, key: string | undefined) {
     const id = this.getRandomInt()
     const list = [...props.list]
     list.push({ id, title: props.newTitle })

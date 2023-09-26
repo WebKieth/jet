@@ -110,15 +110,17 @@ export abstract class Component {
     }
   }
   #addNodeEvents(node: HTMLElement, props: any, checkInside = false) {
+    // К комменту на 157. Нужна блок-схема и тотальный рефакторинг, отталкиваясь от текущей начинки
     const eventName = node.getAttribute('x-event')
-      const callbackName = node.getAttribute('x-on')
-      if (eventName && callbackName)
-        this.#addEventCallback(node, props, eventName, callbackName)
-      if (checkInside) return
-      const elementsWithEvents = node.querySelectorAll(`[x-on][x-event]`)
-      for (const element of elementsWithEvents) {
-        this.#addNodeEvents(element as HTMLElement, props, true)
-      }
+    const callbackName = node.getAttribute('x-on')
+    // console.log('Jet addNodeEvents callback', this.#findPotentiallyBindedKey(node), node)
+    if (eventName && callbackName)
+      this.#addEventCallback(node, props, eventName, callbackName, this.#findPotentiallyBindedKey(node))
+    if (checkInside) return
+    const elementsWithEvents = node.querySelectorAll(`[x-on][x-event]`)
+    for (const element of elementsWithEvents) {
+      this.#addNodeEvents(element as HTMLElement, props, true)
+    }
   }
   #hardPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
     const parent = domNode.parentNode
@@ -153,9 +155,12 @@ export abstract class Component {
     })
     if (domNode.hasAttribute('x-event-binded')) {
       this.#cleanNodeEvents(domNode)
+      // Процесс смахивает на parse events. Андруха, у нас криминал, похоже на DRY - по коням
       const eventName = domNode.getAttribute('x-event')
       const callbackName = domNode.getAttribute('x-on')
-      this.#addEventCallback(domNode, props, eventName, callbackName)
+      const callbackKey = this.#findPotentiallyBindedKey(domNode)
+      console.log('Jet soft patch callback', callbackKey, domNode)
+      this.#addEventCallback(domNode, props, eventName, callbackName, callbackKey)
     }
   }
   #createDefaultNodeMap(collection: HTMLCollection): Map<Element, boolean> {
@@ -275,7 +280,6 @@ export abstract class Component {
         `, this.parentNode, virtualNode, compiledTemplate, memoizedPatch)
     this.#compareChildNodes(this.parentNode.children, virtualNode.children, this.parentNode, props)
   }
-
   #cleanTree() {
     this.#vTree.forEach((instance, key) => {
       instance.#cleanTree()
@@ -327,7 +331,21 @@ export abstract class Component {
     })
   }
 
-  #addEventCallback(element: Element, props: any, eventName: string | null, callbackName: string | null) {
+  /**
+   * Похоже что пора делать улитки утилитки
+   * @param target 
+   * @returns array of parent dom tree
+   */
+  #findParents(target: Element) {
+    const elements: HTMLElement[] = [];
+    while (target.parentElement) {
+      elements.unshift(target.parentElement);
+      target = target.parentElement;
+    }
+    return elements
+  }
+
+  #addEventCallback(element: Element, props: any, eventName: string | null, callbackName: string | null, callbackKey: string | null |undefined) {
     if (eventName === null || callbackName === null) {
       console.warn(`Attention! Jet Surging!\n
         Cant find one of event bound attributes!\n
@@ -343,23 +361,40 @@ export abstract class Component {
       `, element, props)
       return
     }
-    callback = callback.bind(this, props)
+    // console.log('JET callback Debug: set new callback with: ', props, callbackKey)
+    callback = callback.bind(this, props, callbackKey)
     element.addEventListener(eventName, callback)
 
     const eventCode = `${eventName}_${this.#uuid.toString()}`
     element.setAttribute('x-event-binded', eventCode)
-    console.log(`
-          JET DEBUG LOG: #addEventCallback result for ${this.constructor.name} ${this.#uuid}: 
-        `, element, this.#eventCollector, eventCode, callback)
+    // console.dir(`
+    //       JET DEBUG LOG: #addEventCallback result for ${this.constructor.name} ${this.#uuid}: 
+    //     `, element)
     this.#eventCollector.set(eventCode, callback)
   }
-
+  #findPotentiallyBindedKey(target: Element) {
+    const parentElements = this.#findParents(target)
+    // console.log('JET parentElements', parentElements)
+    let xKey: string = ''
+    parentElements.forEach((element) => {
+      const xKeyAttr = element.getAttribute('x-key')
+      if (xKeyAttr === null) return
+      if (typeof xKeyAttr === 'string' && xKeyAttr.length > 0) {
+        xKey = xKeyAttr
+      }
+    })
+    // console.log('xKey', xKey, target);
+    return xKey
+  }
   #parseEvents(props: any) {
     const elements = this.parentNode.querySelectorAll(`[x-on][x-event]:not([x-event-binded])`)
     for (const element of elements) {
       const eventName = element.getAttribute('x-event')
+      // get scan and find xKey to pass as second argument
       const callbackName = element.getAttribute('x-on')
-      this.#addEventCallback(element, props, eventName, callbackName)
+      const callbackKey = this.#findPotentiallyBindedKey(element)
+      // console.log('JET callbackKey', callbackKey);
+      this.#addEventCallback(element, props, eventName, callbackName, callbackKey)
     }
   }
   /**
