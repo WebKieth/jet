@@ -96,11 +96,13 @@ export abstract class Component {
     const codesArr = codes.split(',').map((item) => item.trim())
     codesArr.forEach((code) => {
       const callback = this.#eventCollector.get(code)
+      console.log(`===> JET clean node event ${code}`, callback)
       if (callback === undefined) return
       this.#cleanEvent(code, callback)
     })
   }
   #removeNodeEvents(node: HTMLElement) {
+    console.log('Jet initialize removeNodeEvents')
     if (node.hasAttribute('x-event-binded')) {
       this.#cleanNodeEvents(node)
     }
@@ -113,7 +115,7 @@ export abstract class Component {
     // К комменту на 157. Нужна блок-схема и тотальный рефакторинг, отталкиваясь от текущей начинки
     const eventName = node.getAttribute('x-event')
     const callbackName = node.getAttribute('x-on')
-    // console.log('Jet addNodeEvents callback', this.#findPotentiallyBindedKey(node), node)
+    console.log('Jet initialize addNodeEvents', eventName, callbackName, this.#findPotentiallyBindedKey(node), node)
     if (eventName && callbackName)
       this.#addEventCallback(node, props, eventName, callbackName, this.#findPotentiallyBindedKey(node))
     if (checkInside) return
@@ -124,9 +126,10 @@ export abstract class Component {
   }
   #hardPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
     const parent = domNode.parentNode
+    console.log(`JET initialize hardPatchNode`, domNode.parentNode)
+    this.#addNodeEvents(virtualNode, props)
     this.#removeNodeEvents(domNode)
     parent?.replaceChild(virtualNode, domNode)
-    this.#addNodeEvents(virtualNode, props)
   }
   #softPatchNode(domNode: HTMLElement, virtualNode: HTMLElement, props: any) {
     const getAttributeNames = (node: HTMLElement) => {
@@ -142,6 +145,7 @@ export abstract class Component {
     }
     const domAttrs = getAttributeNames(domNode);
     const vAttrs = getAttributeNames(virtualNode);
+    console.log(`JET initialize softPatchNode`, domNode.parentNode)
     Object.keys(vAttrs).forEach((attrKey) => {
       const newValue = vAttrs[attrKey]
       const oldValue = domAttrs[attrKey]
@@ -195,7 +199,7 @@ export abstract class Component {
     const realChildenMap = this.#createDefaultNodeMap(realChildren)
     const virtualChildrenMap = this.#createDefaultNodeMap(virtualChildren)
     console.log(`
-      JET DEBUG LOG: starting compate child nodes
+      JET DEBUG LOG: initialize compareChildNodes
     `, realChildenMap, virtualChildrenMap)
     realChildenMap.forEach((status, node) => {
       const found = this.#findAndPatchSimilars(node, virtualChildrenMap, props)
@@ -205,9 +209,9 @@ export abstract class Component {
     })
     realChildenMap.forEach((status, node) => {
       if (status === false) {
-        if (node.hasAttribute('x-event-binded')) {
-          this.#cleanNodeEvents(node as HTMLElement)
-        }
+        // if (node.hasAttribute('x-event-binded')) {
+        //   this.#cleanNodeEvents(node as HTMLElement)
+        // }
         node.remove()
       }
     })
@@ -242,6 +246,7 @@ export abstract class Component {
       if (!_Component || !domNode.parentNode) return
       const instance = new _Component(props, this.components, domNode.parentNode, this.#bus)
       this.#vTree.set(`${instance.getComponentId().toString()}`, instance)
+      console.log(`JET finish replacing virtual children`, this.#vTree.size)
     }
   }
 
@@ -276,7 +281,7 @@ export abstract class Component {
       return
     }
     console.log(`
-          JET DEBUG LOG: starting compate child nodes ${this.constructor.name} ${this.#uuid}: 
+          JET DEBUG LOG: starting compare child nodes ${this.constructor.name} ${this.#uuid}: 
         `, this.parentNode, virtualNode, compiledTemplate, memoizedPatch)
     this.#compareChildNodes(this.parentNode.children, virtualNode.children, this.parentNode, props)
   }
@@ -289,11 +294,13 @@ export abstract class Component {
 
   #cleanEvent(key: string, callback: () => void) {
     const element = this.parentNode.querySelector(`[x-event-binded=${key}]`)
+    console.log(`===> JET clean node event element `, element)
     if (element === null)
       return
     const event = key.split('_')[0]
     element.removeEventListener(event, callback)
     this.#eventCollector.delete(key)
+    console.log(`===> JET event collector log DELETE: size ${this.#eventCollector.size} `)
   }
 
   #cleanEvents() {
@@ -367,9 +374,9 @@ export abstract class Component {
 
     const eventCode = `${eventName}_${this.#uuid.toString()}`
     element.setAttribute('x-event-binded', eventCode)
-    // console.dir(`
+    // console.log(`
     //       JET DEBUG LOG: #addEventCallback result for ${this.constructor.name} ${this.#uuid}: 
-    //     `, element)
+    //     `, element, this.#eventCollector.size)
     this.#eventCollector.set(eventCode, callback)
   }
   #findPotentiallyBindedKey(target: Element) {
@@ -412,7 +419,7 @@ export abstract class Component {
       return
     }
     this.#states = this.viewService(this.#states, changes)
-    console.log(`JET DEBUG LOG: start updating with new state`, this.#states)
+    console.log(`================= sJET DEBUG LOG: start updating with new state ==================`, this.#states)
     this.#patchTree(this.#states)
     this.updated(this.#states)
   }
