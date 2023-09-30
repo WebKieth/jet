@@ -251,23 +251,17 @@ export abstract class Component {
   }
 
   #patchNodeLevel(realNode: HTMLElement, virtualNode: HTMLElement, props: any) {
+    const SOFT_PATCH_NODENAMES = [`BUTTON`,`INPUT`];
     if (realNode.children.length === 0 && virtualNode.children.length === 0) {
       if (this.isComponent(virtualNode) === true || this.isComponent(realNode) === true) {
-        const realNodeComponentName = realNode.getAttribute('x-component')
-        const virtualNodeComponentName = virtualNode.getAttribute('x-component')
-        if (realNodeComponentName !== virtualNodeComponentName)
-          this.#replaceVirtualChildren(realNode, virtualNode, props)
+        this.#replaceVirtualChildren(realNode, virtualNode, props)
         // maybe else patch update props in new version...
-        return
+      }
+      if (SOFT_PATCH_NODENAMES.includes(realNode.nodeName) && SOFT_PATCH_NODENAMES.includes(virtualNode.nodeName) && realNode.nodeName === virtualNode.nodeName) {
+        this.#softPatchNode(realNode, virtualNode, props)
       }
       console.log('JET DEBUG ### soft patch ', realNode, virtualNode)
-      this.#softPatchNode(realNode, virtualNode, props)
-      return
     } else if (realNode.children.length > 0 && virtualNode.children.length > 0) {
-      console.log('JET DEBUG ### compare ', realNode, virtualNode.children)
-      this.#compareChildNodes(realNode.children, virtualNode.children, realNode, props)
-    } else {
-      console.log('JET DEBUG ### hard patch ', realNode, virtualNode)
       this.#hardPatchNode(realNode, virtualNode, props)
     }
   }
