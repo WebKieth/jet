@@ -1,6 +1,7 @@
 import axios from "axios";
 import { EventBus } from "../../../lib/bus";
 import { Component } from "../../../lib";
+import { Title } from "./tree/Title";
 //@ts-ignore
 import template from './template.mustache'
 
@@ -12,7 +13,7 @@ export class UpdatableList extends Component {
         list: [],
         newTitle: ''
       },
-      {},
+      { Title },
       parentNode,
       bus,
       template,

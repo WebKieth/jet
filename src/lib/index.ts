@@ -209,9 +209,9 @@ export abstract class Component {
     })
     realChildenMap.forEach((status, node) => {
       if (status === false) {
-        // if (node.hasAttribute('x-event-binded')) {
-        //   this.#cleanNodeEvents(node as HTMLElement)
-        // }
+        if (node.hasAttribute('x-event-binded')) {
+          this.#cleanNodeEvents(node as HTMLElement)
+        }
         node.remove()
       }
     })
@@ -251,6 +251,7 @@ export abstract class Component {
   }
 
   #patchNodeLevel(realNode: HTMLElement, virtualNode: HTMLElement, props: any) {
+    console.log('PATCH NODE LEVEL');
     const SOFT_PATCH_NODENAMES = [`BUTTON`,`INPUT`];
     if (realNode.children.length === 0 && virtualNode.children.length === 0) {
       if (this.isComponent(virtualNode) === true || this.isComponent(realNode) === true) {

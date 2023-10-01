@@ -5,7 +5,7 @@
   {{^loading}}
     {{#list}}
       <div x-key='{{id}}' class='item' style='padding: 12px'>
-        <div class='item__title'>{{title}}</div>
+        <div x-component='Title' x-object-key='list' x-object-value='{{id}}' x-object-iterator='id'></div>
         <button x-event='click' x-on='removeOldTitle'>remove</button>
       </div>
     {{/list}}
