@@ -1,0 +1,17 @@
+<div class='list'>
+  {{#loading}}
+    <span>loading...</span>
+  {{/loading}}
+  {{^loading}}
+    {{#list}}
+      <div x-key='{{id}}' class='item' style='padding: 12px'>
+        <div x-component='Title' x-object-key='list' x-object-value='{{id}}' x-object-iterator='id'></div>
+        <button x-event='click' x-on='removeOldTitle'>remove</button>
+      </div>
+    {{/list}}
+  {{/loading}}
+  <div class='form'>
+    <input value='{{newTitle}}' x-event='keyup' x-on='changeNewTitle' />
+    <button x-event='click' x-on='addNewTitle'>add</button>
+  </div>
+</div>
